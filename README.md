@@ -43,9 +43,9 @@ sudo python specter.py <wireless_interface> <known_networks.json>
 
 ## TO-DO
 
-[ ] Add detection of other attack vectors
-[x] Multithreading
-[x] Fixing Bugs
-[x] Mac Spoofing
-[x] Karma Attacks Detection
-[x] Logging 
+- [ ] Add detection of other attack vectors
+- [x] Multithreading
+- [x] Fixing Bugs
+- [x] Mac Spoofing
+- [x] Karma Attacks Detection
+- [x] Logging 
