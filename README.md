@@ -16,7 +16,7 @@ Specter is a dynamic WiFi network analysis tool crafted in Python, utilizing Sca
 ```bash
 git clone https://github.com/UncleJ4ck/specter.git
 cd specter
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ## Usage
