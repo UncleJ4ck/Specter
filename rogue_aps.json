@@ -1,0 +1,10 @@
+{
+    "e4:9e:12:89:a0:79": {
+        "ssid": "freebox_You",
+        "channel": 4,
+        "power": -40,
+        "encryption": "Open",
+        "cipher": "",
+        "tsf": 52941333
+    }
+}
