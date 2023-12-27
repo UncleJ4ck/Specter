@@ -44,6 +44,7 @@ sudo python specter.py <wireless_interface> <known_networks.json>
 ## TO-DO
 
 - [ ] Add detection of other attack vectors
+- [ ] Add deauthentication as a defensive mechanism
 - [x] Multithreading
 - [x] Fixing Bugs
 - [x] Mac Spoofing
