@@ -41,6 +41,11 @@ sudo python specter.py <wireless_interface> <known_networks.json>
 
 > Detecting the simple eviltwil using spectre
 
+Tested on:
+- Ubuntu 22.04
+- PopOS
+- Raspberry PI 3 Model B+
+  
 ## TO-DO
 
 - [ ] Add detection of other attack vectors
