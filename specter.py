@@ -262,6 +262,7 @@ def sniff_networks(interface, known_networks):
     except Exception as e:
         print(f"Error sniffing on {interface}: {e}")
 
+
 def main():
     global current_channel
     if len(sys.argv) < 4:
@@ -271,24 +272,30 @@ def main():
     known_networks_file = sys.argv[2]
     secondary_interface = sys.argv[3]
     known_networks = load_known_networks(known_networks_file)
-    while True:
-        active_interface = get_active_interface(primary_interface, secondary_interface)
-        if not active_interface:
-            print("Both interfaces are down. Exiting.")
-            break
-        print(f"Using interface {active_interface}")
-        set_monitor_mode(active_interface)
-        change_mac(active_interface)
-        frequency = get_wireless_frequency(active_interface)
-        channels = CHANNELS_2_4_GHZ if frequency < 5 else CHANNELS_5_GHZ if frequency < 6 else CHANNELS_6_GHZ
-        print(f"Starting WiFi scan on {active_interface}... (Press Ctrl+C to stop)")
-        channel_thread = Thread(target=channel_hopper, args=(active_interface, channels), daemon=True)
-        channel_thread.start()
-        sniff_networks(active_interface, known_networks)
-        run_command(["sudo", "ip", "link", "set", active_interface, "down"])
+    try:
+        while True:
+            active_interface = get_active_interface(primary_interface, secondary_interface)
+            if not active_interface:
+                print("Both interfaces are down. Exiting.")
+                break
+            print(f"Using interface {active_interface}")
+            set_monitor_mode(active_interface)
+            change_mac(active_interface)
+            frequency = get_wireless_frequency(active_interface)
+            channels = CHANNELS_2_4_GHZ if frequency < 5 else CHANNELS_5_GHZ if frequency < 6 else CHANNELS_6_GHZ
+            print(f"Starting WiFi scan on {active_interface}... (Press Ctrl+C to stop)")
+            channel_thread = Thread(target=channel_hopper, args=(active_interface, channels), daemon=True)
+            channel_thread.start()
+            sniff_networks(active_interface, known_networks)
+            run_command(["sudo", "ip", "link", "set", active_interface, "down"])
+            run_command(["sudo", "iw", active_interface, "set", "type", "managed"])
+            run_command(["sudo", "ip", "link", "set", active_interface, "up"])
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Saving rogue APs data...")
+        save_rogue_aps()
         run_command(["sudo", "iw", active_interface, "set", "type", "managed"])
         run_command(["sudo", "ip", "link", "set", active_interface, "up"])
-        time.sleep(1)
     print("Saving rogue APs data...")
     save_rogue_aps()
 
