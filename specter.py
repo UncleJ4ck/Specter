@@ -11,12 +11,12 @@ from scapy.all import *
 from scapy.layers.dot11 import Dot11Elt, Dot11Beacon, Dot11ProbeResp, Dot11EltRSN, Dot11EltMicrosoftWPA
 from threading import Thread, Lock
 
+
 CHANNELS_2_4_GHZ = range(1, 15)
 CHANNELS_5_GHZ = range(36, 166, 4)
 CHANNELS_6_GHZ = range(1, 234)
 
 print_lock = Lock()
-
 current_channel = None
 networks = {}
 vendor_cache = {}
@@ -146,7 +146,6 @@ def parse_encryption(packet):
             crypto.add("WEP")
     return '/'.join(crypto) if crypto else "Open"
 
-
 def extract_tsf(packet):
     if packet.haslayer(Dot11Beacon):
         tsf = packet[Dot11Beacon].timestamp
@@ -155,8 +154,6 @@ def extract_tsf(packet):
     else:
         tsf = 'N/A'
     return tsf
-
-
 
 def update_networks(ssid, bssid, channel, power, encryption, cipher, tsf, known_networks):
     ssid = ''.join(c if c.isprintable() else '.' for c in ssid) if ssid else "Hidden/Corrupted SSID"
@@ -178,13 +175,14 @@ def save_rogue_aps():
     with open('rogue_aps.json', 'w') as file:
         json.dump(rogue_aps, file, indent=4)
 
+
 def print_all_networks(known_networks):
     global current_channel
     global networks
     networks_count = len(networks)
     if networks_count > 41:
         networks.clear()
-        print("\033[1;33;40mNetworks list cleared to avoid flooding the terminal.\033[0m\n") # no im not gonna use xterm
+        print("\033[1;33;40mNetworks list cleared to avoid flooding the terminal.\033[0m\n")
         return
     os.system('clear')
     header_format = "| {:<19} | {:<27} | {:<17} | {:<4} | {:<4} | {:<16} | {:<9} | {:<13} | {:<20} | {:<8} |"
@@ -205,7 +203,6 @@ def print_all_networks(known_networks):
             info['channel'], info['power'], info['encryption'], info['cipher'],
             tsf_formatted, vendor_display, rogue_status) + "\033[0m")
     print(separator)
-
 
 
 def packet_handler(packet, known_networks):
@@ -239,34 +236,61 @@ def packet_handler(packet, known_networks):
             rogue_status = "NO"
         update_networks(ssid, bssid, channel, power, encryption, cipher, tsf, known_networks)
 
+def run_command(command):
+    try:
+        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+        return result
+    except subprocess.CalledProcessError as e:
+        print(f"Command failed: {e}")
+        return e
 
+def interface_is_up(interface):
+    result = run_command(["ip", "link", "show", "up", interface])
+    return result.returncode == 0 if result else False
+
+def get_active_interface(primary_interface, secondary_interface):
+    if interface_is_up(primary_interface):
+        return primary_interface
+    elif interface_is_up(secondary_interface):
+        return secondary_interface
+    else:
+        return None
+
+def sniff_networks(interface, known_networks):
+    try:
+        sniff(iface=interface, prn=lambda packet: packet_handler(packet, known_networks), store=0)
+    except Exception as e:
+        print(f"Error sniffing on {interface}: {e}")
 
 def main():
     global current_channel
-    if len(sys.argv) < 3:
-        print("Usage: python specter.py <interface> <known_networks.json>")
+    if len(sys.argv) < 4:
+        print("Usage: python script.py <primary_interface> <known_networks.json> <secondary_interface>")
         sys.exit(1)
-    interface = sys.argv[1]
+    primary_interface = sys.argv[1]
     known_networks_file = sys.argv[2]
+    secondary_interface = sys.argv[3]
     known_networks = load_known_networks(known_networks_file)
-    set_monitor_mode(interface)
-    change_mac(interface)
-    frequency = get_wireless_frequency(interface)
-    channels = CHANNELS_2_4_GHZ if frequency < 5 else CHANNELS_5_GHZ if frequency < 6 else CHANNELS_6_GHZ
-    print(f"Starting WiFi scan on {interface}... (Press Ctrl+C to stop)")
-    channel_thread = Thread(target=channel_hopper, args=(interface, channels), daemon=True)
-    channel_thread.start()
-    try:
-        sniff(iface=interface, prn=lambda packet: packet_handler(packet, known_networks), store=0)
-    except KeyboardInterrupt:
-        print("\nStopping WiFi scan")
-        channel_thread.join()
-        run_command(["sudo", "ip", "link", "set", interface, "down"])
-        run_command(["sudo", "iw", interface, "set", "type", "managed"])
-        run_command(["sudo", "ip", "link", "set", interface, "up"])
-    finally:
-        print("Saving rogue APs data...")
-        save_rogue_aps()
+    while True:
+        active_interface = get_active_interface(primary_interface, secondary_interface)
+        if not active_interface:
+            print("Both interfaces are down. Exiting.")
+            break
+        print(f"Using interface {active_interface}")
+        set_monitor_mode(active_interface)
+        change_mac(active_interface)
+        frequency = get_wireless_frequency(active_interface)
+        channels = CHANNELS_2_4_GHZ if frequency < 5 else CHANNELS_5_GHZ if frequency < 6 else CHANNELS_6_GHZ
+        print(f"Starting WiFi scan on {active_interface}... (Press Ctrl+C to stop)")
+        channel_thread = Thread(target=channel_hopper, args=(active_interface, channels), daemon=True)
+        channel_thread.start()
+        sniff_networks(active_interface, known_networks)
+        run_command(["sudo", "ip", "link", "set", active_interface, "down"])
+        run_command(["sudo", "iw", active_interface, "set", "type", "managed"])
+        run_command(["sudo", "ip", "link", "set", active_interface, "up"])
+        time.sleep(1)
+    print("Saving rogue APs data...")
+    save_rogue_aps()
 
 if __name__ == "__main__":
     main()
