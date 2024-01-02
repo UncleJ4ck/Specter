@@ -49,6 +49,7 @@ Tested on:
 ## TO-DO
 
 - [ ] Add detection of other attack vectors
+- [x] Switching between two interfaces
 - [ ] Add deauthentication as a defensive mechanism
 - [x] Multithreading
 - [x] Fixing Bugs
