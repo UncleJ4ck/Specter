@@ -25,10 +25,12 @@ Before running Specter, ensure you have the necessary permissions to manipulate 
 
 ```bash
 
-sudo python specter.py <wireless_interface> <known_networks.json>
+sudo python specter.py <wireless_interface> <known_networks.json> <secondary_wireless_interface>
 
     <wireless_interface>: Your wireless network interface name.
     <known_networks.json>: A JSON file containing details of known networks for rogue AP detection.
+    <secondary_wireless_interface>: Your secondary wireless network interface name.
+
 ```
 
 ## Testing
