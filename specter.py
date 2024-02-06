@@ -26,19 +26,19 @@ def run_command(command):
         subprocess.run(command, check=True, shell=False)
     except subprocess.CalledProcessError as e:
         print(f"Command failed: {e}")
-
+        
 def is_rogue(ssid, bssid, encryption, vendor, known_networks):
     ssid = ssid.lower()
     bssid = bssid.lower()
     encryption = encryption.lower()
-    vendor = vendor.upper()
+    vendor = vendor.lower()
     ssid_listed = any(network['ssid'].lower() == ssid for network in known_networks)
     if not ssid_listed:
         return False
     for network in known_networks:
         known_ssid = network['ssid'].lower()
         known_bssid = network['bssid'].lower()
-        known_vendor = network.get('vendor', 'UNKNOWN').upper()
+        known_vendor = network['vendor'].lower()
         if known_ssid == ssid and known_bssid == bssid and known_vendor == vendor:
             return False
     return True
