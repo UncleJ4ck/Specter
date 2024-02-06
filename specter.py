@@ -11,7 +11,6 @@ from scapy.all import *
 from scapy.layers.dot11 import Dot11Elt, Dot11Beacon, Dot11ProbeResp, Dot11EltRSN, Dot11EltMicrosoftWPA
 from threading import Thread, Lock
 
-
 CHANNELS_2_4_GHZ = range(1, 15)
 CHANNELS_5_GHZ = range(36, 166, 4)
 CHANNELS_6_GHZ = range(1, 234)
@@ -28,17 +27,21 @@ def run_command(command):
     except subprocess.CalledProcessError as e:
         print(f"Command failed: {e}")
 
-def is_rogue(ssid, bssid, encryption, known_networks):
+def is_rogue(ssid, bssid, encryption, vendor, known_networks):
+    ssid = ssid.lower()
     bssid = bssid.lower()
     encryption = encryption.lower()
+    vendor = vendor.upper()
+    ssid_listed = any(network['ssid'].lower() == ssid for network in known_networks)
+    if not ssid_listed:
+        return False
     for network in known_networks:
         known_ssid = network['ssid'].lower()
         known_bssid = network['bssid'].lower()
-        known_encryption = network['encryption'].lower()
-        if (known_ssid == ssid.lower() and (known_bssid != bssid or known_encryption != encryption)) or (known_bssid.lower() == bssid.lower() and known_ssid.lower() != network['ssid'].lower()):
-        # first one is normal rogue ap, second one is karma ap, more to be added all under the name of rogueap
-            return True
-    return False
+        known_vendor = network.get('vendor', 'UNKNOWN').upper()
+        if known_ssid == ssid and known_bssid == bssid and known_vendor == vendor:
+            return False
+    return True
 
 
 def set_monitor_mode(interface):
@@ -155,6 +158,7 @@ def extract_tsf(packet):
         tsf = 'N/A'
     return tsf
 
+
 def update_networks(ssid, bssid, channel, power, encryption, cipher, tsf, known_networks):
     ssid = ''.join(c if c.isprintable() else '.' for c in ssid) if ssid else "Hidden/Corrupted SSID"
     vendor = get_manufacturer(bssid)
@@ -193,7 +197,7 @@ def print_all_networks(known_networks):
     print(separator)
     sorted_networks = sorted(networks.items(), key=lambda item: item[1]['power'], reverse=True)
     for bssid, info in sorted_networks:
-        rogue_status = "YES" if is_rogue(info['ssid'], bssid, info['encryption'], known_networks) else "NO"
+        rogue_status = "YES" if is_rogue(info['ssid'], bssid, info['encryption'], info['vendor'], known_networks) else "NO"
         color = "\033[1;31;40m" if rogue_status == "YES" else "\033[0m"
         tsf_formatted = f"{info['tsf']:.2e}" if isinstance(info['tsf'], int) else info['tsf']
         ssid_display = (info['ssid'][:24] + '...') if len(info['ssid']) > 27 else info['ssid']
@@ -204,9 +208,8 @@ def print_all_networks(known_networks):
             tsf_formatted, vendor_display, rogue_status) + "\033[0m")
     print(separator)
 
-
 def packet_handler(packet, known_networks):
-    global rogue_aps 
+    global rogue_aps
     if packet.haslayer(Dot11Beacon) or packet.haslayer(Dot11ProbeResp):
         bssid = packet[Dot11].addr2
         try:
@@ -219,17 +222,17 @@ def packet_handler(packet, known_networks):
         encryption = parse_encryption(packet)
         cipher = extract_cipher_suites(packet)
         tsf = extract_tsf(packet)
-
+        vendor = get_manufacturer(bssid)
         info = {
             'ssid': ssid,
             'channel': channel,
             'power': power,
             'encryption': encryption,
             'cipher': cipher,
-            'tsf': tsf
+            'tsf': tsf,
+            'vendor': vendor
         }
-
-        if is_rogue(ssid, bssid, encryption, known_networks):
+        if is_rogue(ssid, bssid, encryption, vendor, known_networks):
             rogue_status = "YES"
             rogue_aps[bssid] = info
         else:
