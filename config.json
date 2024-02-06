@@ -2,6 +2,6 @@
   {
       "ssid": "SSID",
       "bssid": "E4:***********",
-      "encryption": "WPA/WPA2"
+      "vendor": "VENDOR_NAME"
   }
 ]
